@@ -1,6 +1,6 @@
 #pragma once
 
-#define BLOCK_SIZE 128
+#define BLOCK_SIZE 256
 
 #include <D3D11.h>
 #include <DirectXMath.h>
@@ -29,20 +29,30 @@ struct CB_Render
 
 struct CB_Simulation
 {
-	float			fVisionDist;
-	float			fVisionAngleCos;
 	float			fAvoidanceFactor;
 	float			fSeperationFactor;
-
 	float			fCohesionFactor;
 	float			fAlignmentFactor;
+
 	float			fSeekingFactor;
+	XMFLOAT3		f3SeekSourcePos;
+
+	float			fFleeFactor;
+	XMFLOAT3		f3FleeSourcePos;
+
 	float			fMaxForce;
+	XMFLOAT3		f3CenterPos;
 
 	float			fMaxSpeed;
+	XMFLOAT3		f3xyzExpand;
+
 	float			fMinSpeed;
+	float			fVisionDist;
+	float			fVisionAngleCos;
 	float			fDeltaT;
+	
 	UINT			uNumInstance;
+	float			niu[3];
 };
 
 // Vertex mesh definition For rendering the 'fish'
@@ -143,7 +153,9 @@ public:
 	bool							m_bParamChanged;
 
 
-	Shoal(UINT FishNum, bool bRenderToBackbuffer = false, UINT width = SUB_TEXTUREWIDTH, UINT height = SUB_TEXTUREHEIGHT)
+	Shoal(UINT FishNum,float deltaT = 0.02, XMFLOAT3 centerPos = XMFLOAT3(0,-2,0),
+		   XMFLOAT3 xyzExpand = XMFLOAT3(60,30,60), bool bRenderToBackbuffer = false,
+		   UINT width = SUB_TEXTUREWIDTH, UINT height = SUB_TEXTUREHEIGHT)
 	{
 		m_bDirectToBackBuffer = bRenderToBackbuffer;
 		
@@ -154,19 +166,23 @@ public:
 		m_fFishSize = 0.3f;									// Fish bonding sphere radius in meter
 		m_uReadBuffer = 0;
 
-		m_CBsimParams.fVisionDist = 2.0;		// Neighbor dist threshold
-		m_CBsimParams.fVisionAngleCos = 0.15;	// Neighbor angle(cos) threshold
-		m_CBsimParams.fAvoidanceFactor = 2.0;	// Strength of avoidance force
-		m_CBsimParams.fSeperationFactor = 1.5;	// Strength of seperation force
-		m_CBsimParams.fCohesionFactor = 5.0;	// Strength of cohesion force
-		m_CBsimParams.fAlignmentFactor = 5.0f;	// Strength of alignment force
-		m_CBsimParams.fSeekingFactor = 3.0f;	// Strength of seeking force
-		m_CBsimParams.fMaxForce = 200.0f;			// Maximum power a fish could offer
-		m_CBsimParams.fMaxSpeed = 10.0f;			// m/s maximum speed a fish could run
-		m_CBsimParams.fMinSpeed = 3.0f;			// m/s minimum speed a fish have to maintain
-		m_CBsimParams.fDeltaT = 0.02f;			// seconds of simulation interval
+		m_CBsimParams.fAvoidanceFactor = 8.0;	// Strength of avoidance force
+		m_CBsimParams.fSeperationFactor = 0.4;	// Strength of seperation force
+		m_CBsimParams.fCohesionFactor = 15;		// Strength of cohesion force
+		m_CBsimParams.fAlignmentFactor = 12;	// Strength of alignment force
+		m_CBsimParams.fSeekingFactor = 0.2;		// Strength of seeking force
+		m_CBsimParams.f3SeekSourcePos = centerPos;
+		m_CBsimParams.fFleeFactor = 0;			// Strength of flee force
+		m_CBsimParams.f3FleeSourcePos = centerPos;
+		m_CBsimParams.fMaxForce = 200.0f;		// Maximum power a fish could offer
+		m_CBsimParams.f3CenterPos = centerPos;
+		m_CBsimParams.fMaxSpeed = 20.0f;		// m/s maximum speed a fish could run
+		m_CBsimParams.f3xyzExpand = xyzExpand;
+		m_CBsimParams.fMinSpeed = 2.5;			// m/s minimum speed a fish have to maintain
+		m_CBsimParams.fVisionDist = 3.5;		// Neighbor dist threshold
+		m_CBsimParams.fVisionAngleCos = -0.6;	// Neighbor angle(cos) threshold
+		m_CBsimParams.fDeltaT = deltaT;			// seconds of simulation interval
 		m_CBsimParams.uNumInstance = m_sShoalData.uNInstances;
-
 		m_bParamChanged = false;
 	}
 
@@ -174,9 +190,9 @@ public:
 	{
 		HRESULT hr = S_OK;
 		if (numFish!=-1) m_sShoalData.uNInstances = numFish;
-		m_fInitClusterScale = 50.0f;						// Cluster radius in meters
+		m_fInitClusterScale = 1.0f;			// Cluster radius in meters
 		// Free previous data
-		delete[] m_sShoalData.shoal;
+		//delete[] m_sShoalData.shoal;
 
 		// Allocate new data
 		m_sShoalData.shoal = new Fish[m_sShoalData.uNInstances];
@@ -188,12 +204,15 @@ public:
 			x = rand() / (float)RAND_MAX * 2 - 1;
 			y = rand() / (float)RAND_MAX * 2 - 1;
 			z = rand() / (float)RAND_MAX * 2 - 1;
+			x = x*0.2*m_CBsimParams.f3xyzExpand.x + m_CBsimParams.f3CenterPos.x;
+			y = y*0.2*m_CBsimParams.f3xyzExpand.y + m_CBsimParams.f3CenterPos.y;
+			z = z*0.2*m_CBsimParams.f3xyzExpand.z + m_CBsimParams.f3CenterPos.z;
 
 			XMVECTOR	vPoint = XMLoadFloat3(&XMFLOAT3(x,y,z));
 			float len;
 			XMStoreFloat(&len, XMVector3Length(vPoint));
-			if (len > 1)
-				continue;
+			//if (len > 1)
+				//continue;
 			//vPoint = XMVector3Normalize(vPoint);
 			XMFLOAT3 point;
 			XMStoreFloat3(&point, vPoint);
@@ -267,7 +286,7 @@ public:
 		ID3DBlob* pVSBlob = NULL;
 		wstring filename = L"ShoalRender.hlsl";
 
-		V_RETURN(DXUTCompileFromFile(filename.c_str(), nullptr, "VS", "vs_5_0", D3DCOMPILE_ENABLE_STRICTNESS, 0, &pVSBlob));
+		V_RETURN(DXUTCompileFromFile(filename.c_str(), nullptr, "VS", "vs_5_0", D3DCOMPILE_OPTIMIZATION_LEVEL3, 0, &pVSBlob));
 		V_RETURN(pd3dDevice->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), NULL, &m_pRenderFishVS));
 
 		// Create vertex input layout 
@@ -284,19 +303,19 @@ public:
 
 
 		ID3DBlob* pGSBlob = NULL;
-		V_RETURN(DXUTCompileFromFile(filename.c_str(), nullptr, "GS", "gs_5_0", D3DCOMPILE_ENABLE_STRICTNESS, 0, &pGSBlob));
+		V_RETURN(DXUTCompileFromFile(filename.c_str(), nullptr, "GS", "gs_5_0", D3DCOMPILE_OPTIMIZATION_LEVEL3, 0, &pGSBlob));
 		V_RETURN(pd3dDevice->CreateGeometryShader(pGSBlob->GetBufferPointer(), pGSBlob->GetBufferSize(), NULL, &m_pRenderFishGS));
 		pGSBlob->Release();
 
 		ID3DBlob* pPSBlob = NULL;
-		V_RETURN(DXUTCompileFromFile(filename.c_str(), nullptr, "PS", "ps_5_0", D3DCOMPILE_ENABLE_STRICTNESS, 0, &pPSBlob));
+		V_RETURN(DXUTCompileFromFile(filename.c_str(), nullptr, "PS", "ps_5_0", D3DCOMPILE_OPTIMIZATION_LEVEL3, 0, &pPSBlob));
 		V_RETURN(pd3dDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), NULL, &m_pRenderFishPS));
 		pPSBlob->Release();
 
 		// Load compute shader for simulation
 		ID3DBlob* pCSBlob = NULL;
 		filename = L"ShoalSimulate.hlsl";
-		V_RETURN(DXUTCompileFromFile(filename.c_str(), nullptr, "CS", "cs_5_0", D3DCOMPILE_ENABLE_STRICTNESS, 0, &pCSBlob));
+		V_RETURN(DXUTCompileFromFile(filename.c_str(), nullptr, "CS", "cs_5_0", D3DCOMPILE_OPTIMIZATION_LEVEL3, 0, &pCSBlob));
 		V_RETURN(pd3dDevice->CreateComputeShader(pCSBlob->GetBufferPointer(), pCSBlob->GetBufferSize(), NULL, &m_pSimCS));
 		pCSBlob->Release();
 
@@ -358,9 +377,9 @@ public:
 		D3D11_SAMPLER_DESC sampDesc;
 		ZeroMemory(&sampDesc, sizeof(sampDesc));
 		sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-		sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
-		sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
-		sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_MIRROR;
+		sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+		sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+		sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
 		sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
 		sampDesc.MinLOD = 0;
 		sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
@@ -472,6 +491,7 @@ public:
 		pd3dImmediateContext->Map(m_pSimCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource);
 		MappedResource.pData = &m_CBsimParams;
 		pd3dImmediateContext->Unmap(m_pSimCB, 0);*/
+		//SAFE_RELEASE(pd3dImmediateContext);
 	}
 
 	void Update(float fElapsedTime)
@@ -481,7 +501,7 @@ public:
 
 	void Simulate(ID3D11DeviceContext* pd3dImmediateContext)
 	{
-		int dimx = int(ceil(m_sShoalData.uNInstances / 128.0f));
+		int dimx = int(ceil(m_sShoalData.uNInstances / (float)BLOCK_SIZE));
 		pd3dImmediateContext->CSSetShader(m_pSimCS, NULL, 0);
 		
 		// Set CS input
@@ -510,13 +530,19 @@ public:
 	void Render(ID3D11DeviceContext* pd3dImmediateContext)
 	{
 		HRESULT hr = S_OK;
-		Simulate(pd3dImmediateContext);
+		//Simulate(pd3dImmediateContext);
 		// Clear rendertarget
 		float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 		pd3dImmediateContext->ClearRenderTargetView(m_pOutputTextureRTV, ClearColor);
 		pd3dImmediateContext->ClearDepthStencilView(m_pOutputStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
 		XMMATRIX m_Proj = m_Camera.GetProjMatrix();
+		//{// Orthographic Projection
+		//	XMVECTOR eyePos = m_Camera.GetEyePt();
+		//	float length;
+		//	XMStoreFloat(&length, XMVector3Length(eyePos));
+		//	XMMATRIX m_Proj = XMMatrixOrthographicLH(length, (float)m_uRTheight / (float)m_uRTheight*length, 0.1, 1000);
+		//}
 		XMMATRIX m_View = m_Camera.GetViewMatrix();
 		XMMATRIX m_World = m_Camera.GetWorldMatrix();
 
@@ -534,11 +560,12 @@ public:
 		pd3dImmediateContext->GSSetShader(m_pRenderFishGS, NULL, 0);
 		pd3dImmediateContext->PSSetShader(m_pRenderFishPS, NULL, 0);
 		// Bind constant buffer
-		pd3dImmediateContext->VSSetConstantBuffers(0, 1, &m_pRenderCBDraw);
+		pd3dImmediateContext->GSSetConstantBuffers(0, 1, &m_pRenderCBDraw);
 		// Bind VS shader resource, the StructuredBuffer
-		pd3dImmediateContext->VSSetShaderResources(0, 1, &m_pSimFishBufferSRV[m_uReadBuffer]);
+		pd3dImmediateContext->GSSetShaderResources(0, 1, &m_pSimFishBufferSRV[m_uReadBuffer]);
 		pd3dImmediateContext->PSSetShaderResources(1, 1, &m_pRenderFishTex);
-		pd3dImmediateContext->VSSetShaderResources(2, 1, &m_pRenderColorTex);
+		pd3dImmediateContext->PSSetShaderResources(2, 1, &m_pRenderColorTex);
+		pd3dImmediateContext->PSSetSamplers(0,1,&m_pRenderFishSS);
 
 		// Set viewport
 		pd3dImmediateContext->RSSetViewports(1, &m_RTviewport);
@@ -557,7 +584,7 @@ public:
 		pd3dImmediateContext->DrawInstanced(ARRAYSIZE(g_PolygonFish),m_sShoalData.uNInstances, 0,0);
 
 		ID3D11ShaderResourceView* ppSRVNULL[1] = { NULL };
-		pd3dImmediateContext->VSSetShaderResources(0, 1, ppSRVNULL);
+		pd3dImmediateContext->GSSetShaderResources(0, 1, ppSRVNULL);
 	}
 
 	void Release()

@@ -10,6 +10,8 @@
     <ClInclude Include="MultiTexturePresenter.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Shoal.h" />
+    <ClInclude Include="GlowEffect.h" />
+    <ClInclude Include="MotionBlurEffect.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Shoal.rc">
@@ -28,5 +30,7 @@
     <FxCompile Include="MultiTexturePresenter.fx" />
     <FxCompile Include="ShoalRender.hlsl" />
     <FxCompile Include="ShoalSimulate.hlsl" />
+    <FxCompile Include="GlowEffect.fx" />
+    <FxCompile Include="MotionBlurEffect.fx" />
   </ItemGroup>
 </Project>
