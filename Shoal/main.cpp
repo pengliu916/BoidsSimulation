@@ -18,17 +18,28 @@ float								g_fDeltaTime = 0.015;	// Global dt for simulation
 float								g_fThreasholdDt = 0.08;	// Global maximum dt allowed for simulation
 float								g_fdtAccumulator = 0;	// Global accumulator for dt
 
-MultiTexturePresenter						MultiTexture = MultiTexturePresenter( 1, true, SUB_TEXTUREWIDTH, SUB_TEXTUREHEIGHT );
+//MultiTexturePresenter						MultiTexture = MultiTexturePresenter( 1, true, SUB_TEXTUREWIDTH, SUB_TEXTUREHEIGHT );
 CDXUTDialogResourceManager					DialogResourceManager;
 CDXUTDialog									SimulationUI;
-CDXUTDialog									RenderUI;
+//CDXUTDialog									RenderUI;
 
-Shoal										FishCluster = Shoal( 10000, g_fDeltaTime );
-GlowEffect									PostEffect_Glow = GlowEffect();
-MotionBlurEffect							PostEffect_Blur = MotionBlurEffect();
+Shoal										FishCluster = Shoal( 20000, g_fDeltaTime,DirectX::XMFLOAT3(0,0,0),DirectX::XMFLOAT3(60,30,60),true,1280,800 );
+//GlowEffect									PostEffect_Glow = GlowEffect();
+//MotionBlurEffect							PostEffect_Blur = MotionBlurEffect();
 
 
 bool										g_bRenderUI = true;
+
+
+
+
+static uint64_t g_tickesPerSecond;
+static uint64_t g_lastFrameTickCount;
+
+double g_elapsedTime = 0;
+double frameTime = 0;
+double g_deltaTime = 0;
+
 //--------------------------------------------------------------------------------------
 // UI control IDs
 //--------------------------------------------------------------------------------------
@@ -146,28 +157,28 @@ HRESULT Initial()
 	SimulationUI.AddSlider( IDC_FISHSIZE_SLIDER, 0, iY += 26, 170, 23, 1, 2000,
 							( int )( FishCluster.m_fFishSize * 100 ) );
 
-	RenderUI.Init( &DialogResourceManager );
-	//RenderUI.SetFont
-	RenderUI.SetCallback( OnGUIEvent ); iY = 10;
+	//RenderUI.Init( &DialogResourceManager );
+	////RenderUI.SetFont
+	//RenderUI.SetCallback( OnGUIEvent ); iY = 10;
 
-	RenderUI.SetFont( 1, L"Comic Sans MS", 400, 400 );
-	RenderUI.SetFont( 2, L"Courier New", 16, FW_NORMAL );
-	swprintf_s( sz, 100, L"Glow factor: %0.2f", PostEffect_Glow.m_CBperResize.glow_factor );
-	RenderUI.AddStatic( IDC_GLOWFACTOR_STATIC, sz, 0, iY += 26, 170, 23 );
-	RenderUI.AddSlider( IDC_GLOWFACTOR_SLIDER, 0, iY += 26, 170, 23, 0, 200, 100 );
+	//RenderUI.SetFont( 1, L"Comic Sans MS", 400, 400 );
+	//RenderUI.SetFont( 2, L"Courier New", 16, FW_NORMAL );
+	//swprintf_s( sz, 100, L"Glow factor: %0.2f", PostEffect_Glow.m_CBperResize.glow_factor );
+	//RenderUI.AddStatic( IDC_GLOWFACTOR_STATIC, sz, 0, iY += 26, 170, 23 );
+	//RenderUI.AddSlider( IDC_GLOWFACTOR_SLIDER, 0, iY += 26, 170, 23, 0, 200, 100 );
 
-	swprintf_s( sz, 100, L"Blend factor: %0.2f", PostEffect_Glow.m_CBperResize.blend_factor );
-	RenderUI.AddStatic( IDC_GLOWBLENDFACTOR_STATIC, sz, 0, iY += 26, 170, 23 );
-	RenderUI.AddSlider( IDC_GLOWBLENDFACTOR_SLIDER, 0, iY += 26, 170, 23, 0, 300, 100 );
+	//swprintf_s( sz, 100, L"Blend factor: %0.2f", PostEffect_Glow.m_CBperResize.blend_factor );
+	//RenderUI.AddStatic( IDC_GLOWBLENDFACTOR_STATIC, sz, 0, iY += 26, 170, 23 );
+	//RenderUI.AddSlider( IDC_GLOWBLENDFACTOR_SLIDER, 0, iY += 26, 170, 23, 0, 300, 100 );
 
-	swprintf_s( sz, 100, L"Blur factor: %0.2f", PostEffect_Blur.m_CBperResize.blur_factor );
-	RenderUI.AddStatic( IDC_BLURFACTOR_STATIC, sz, 0, iY += 26, 170, 23 );
-	RenderUI.AddSlider( IDC_BLURFACTOR_SLIDER, 0, iY += 26, 170, 23, 100, 1000, 600 );
+	//swprintf_s( sz, 100, L"Blur factor: %0.2f", PostEffect_Blur.m_CBperResize.blur_factor );
+	//RenderUI.AddStatic( IDC_BLURFACTOR_STATIC, sz, 0, iY += 26, 170, 23 );
+	//RenderUI.AddSlider( IDC_BLURFACTOR_SLIDER, 0, iY += 26, 170, 23, 100, 1000, 600 );
 
 	FishCluster.Initial();
-	V_RETURN( MultiTexture.Initial() );
-	V_RETURN( PostEffect_Glow.Initial() );
-	V_RETURN( PostEffect_Blur.Initial() );
+	//V_RETURN( MultiTexture.Initial() );
+	//V_RETURN( PostEffect_Glow.Initial() );
+	//V_RETURN( PostEffect_Blur.Initial() );
 	return hr;
 }
 
@@ -186,13 +197,13 @@ bool CALLBACK IsD3D11DeviceAcceptable( const CD3D11EnumAdapterInfo *AdapterInfo,
 //--------------------------------------------------------------------------------------
 bool CALLBACK ModifyDeviceSettings( DXUTDeviceSettings* pDeviceSettings, void* pUserContext )
 {
-	MultiTexture.ModifyDeviceSettings( pDeviceSettings );
+	//MultiTexture.ModifyDeviceSettings( pDeviceSettings );
 	return true;
 }
 
 
 //--------------------------------------------------------------------------------------
-// Create any D3D11 resources that aren't dependant on the back buffer
+// Create any D3D11 resources that aren't dependent on the back buffer
 //--------------------------------------------------------------------------------------
 HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFACE_DESC* pBackBufferSurfaceDesc,
 									  void* pUserContext )
@@ -202,9 +213,9 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	V_RETURN( DialogResourceManager.OnD3D11CreateDevice( pd3dDevice, pd3dImmediateContext ) );
 
 	V_RETURN( FishCluster.CreateResource( pd3dDevice, pd3dImmediateContext ) );
-	V_RETURN( PostEffect_Blur.CreateResource( pd3dDevice, FishCluster.m_pOutputTextureRV ) );
-	V_RETURN( PostEffect_Glow.CreateResource( pd3dDevice, PostEffect_Blur.m_pOutputTextureSRV, &FishCluster.m_Camera ) );
-	V_RETURN( MultiTexture.CreateResource( pd3dDevice, PostEffect_Glow.m_pOutputTextureSRV ) );
+	//V_RETURN( PostEffect_Blur.CreateResource( pd3dDevice, FishCluster.m_pOutputTextureRV ) );
+	//V_RETURN( PostEffect_Glow.CreateResource( pd3dDevice, PostEffect_Blur.m_pOutputTextureSRV, &FishCluster.m_Camera ) );
+	//V_RETURN( MultiTexture.CreateResource( pd3dDevice, PostEffect_Glow.m_pOutputTextureSRV ) );
 	//V_RETURN(MultiTexture.CreateResource(pd3dDevice, PostEffect_Glow.m_pGlow_H_TextureSRV));
 
 	return S_OK;
@@ -222,11 +233,15 @@ HRESULT CALLBACK OnD3D11ResizedSwapChain( ID3D11Device* pd3dDevice, IDXGISwapCha
 	SimulationUI.SetLocation( pBackBufferSurfaceDesc->Width - 180, 0 );
 	SimulationUI.SetSize( 180, 600 );
 
-	RenderUI.SetLocation( 20, 0 );
-	RenderUI.SetSize( 180, 600 );
+	//RenderUI.SetLocation( 20, 0 );
+	//RenderUI.SetSize( 180, 600 );
 
-	MultiTexture.Resize();
+	//MultiTexture.Resize();
 	FishCluster.Resize();
+
+	QueryPerformanceFrequency( (LARGE_INTEGER*)&g_tickesPerSecond );
+	QueryPerformanceCounter( (LARGE_INTEGER*)&g_lastFrameTickCount );
+
 	return S_OK;
 }
 
@@ -246,24 +261,42 @@ void CALLBACK OnFrameMove( double fTime, float fElapsedTime, void* pUserContext 
 void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext,
 								  double fTime, float fElapsedTime, void* pUserContext )
 {
-	if (fElapsedTime > g_fThreasholdDt) fElapsedTime = g_fThreasholdDt;
+
+	uint64_t count;
+	QueryPerformanceCounter( (LARGE_INTEGER*)&count );
+	double g_deltaTime = (double)(count - g_lastFrameTickCount) / g_tickesPerSecond;
+	g_elapsedTime += g_deltaTime;
+	g_lastFrameTickCount = count;
+
+	// Maintaining absolute time sync is not important in this demo so we can err on the "smoother" side
+	double alpha = 0.1f;
+	frameTime = alpha * g_deltaTime + (1.0f - alpha) * frameTime;
+
+	// Update GUI
+	{
+		wchar_t buffer[512];
+		swprintf( buffer, 512, L"-%4.1f ms  %.0f fps", 1000.f * frameTime, 1.0f / frameTime );
+		SetWindowText(DXUTGetHWNDDeviceWindowed(), buffer );
+	}
+
+	/*if (fElapsedTime > g_fThreasholdDt) fElapsedTime = g_fThreasholdDt;
 	g_fdtAccumulator += fElapsedTime;
 	while (g_fdtAccumulator >= g_fDeltaTime){
-		FishCluster.Simulate(pd3dImmediateContext);
 		g_fdtAccumulator -= g_fDeltaTime;
-	}
+	}*/
+		FishCluster.Simulate(pd3dImmediateContext);
 	FishCluster.Render( pd3dImmediateContext );
-	PostEffect_Blur.Render( pd3dImmediateContext );
-	PostEffect_Glow.Render( pd3dImmediateContext );
-	MultiTexture.Render( pd3dImmediateContext );
+	//PostEffect_Blur.Render( pd3dImmediateContext );
+	//PostEffect_Glow.Render( pd3dImmediateContext );
+	//MultiTexture.Render( pd3dImmediateContext );
 
-	if( g_bRenderUI )
-	{
-		DXUT_BeginPerfEvent( DXUT_PERFEVENTCOLOR2, L"SimulationUI" );
-		SimulationUI.OnRender( fElapsedTime );
-		RenderUI.OnRender( fElapsedTime );
-		DXUT_EndPerfEvent();
-	}
+	//if( g_bRenderUI )
+	//{
+	//	DXUT_BeginPerfEvent( DXUT_PERFEVENTCOLOR2, L"SimulationUI" );
+	//	SimulationUI.OnRender( fElapsedTime );
+	//	//RenderUI.OnRender( fElapsedTime );
+	//	DXUT_EndPerfEvent();
+	//}
 }
 
 
@@ -287,9 +320,9 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 
 	FishCluster.Release();
 
-	PostEffect_Blur.Release();
-	PostEffect_Glow.Release();
-	MultiTexture.Release();
+	//PostEffect_Blur.Release();
+	//PostEffect_Glow.Release();
+	//MultiTexture.Release();
 }
 
 
@@ -309,9 +342,9 @@ LRESULT CALLBACK MsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
 		if( *pbNoFurtherProcessing )
 			return 0;
 		// Give the dialogs a chance to handle the message first
-		*pbNoFurtherProcessing = RenderUI.MsgProc( hWnd, uMsg, wParam, lParam );
+		/**pbNoFurtherProcessing = RenderUI.MsgProc( hWnd, uMsg, wParam, lParam );
 		if( *pbNoFurtherProcessing )
-			return 0;
+			return 0;*/
 	}
 	FishCluster.HandleMessages( hWnd, uMsg, wParam, lParam );
 	switch( uMsg )
@@ -450,26 +483,26 @@ void CALLBACK OnGUIEvent( UINT nEvent, int nControlID, CDXUTControl* pControl, v
 		SimulationUI.GetStatic( IDC_FISHSIZE_STATIC )->SetText( sz );
 		break;
 
-	case IDC_GLOWFACTOR_SLIDER:
-		floatNum = ( float )( RenderUI.GetSlider( IDC_GLOWFACTOR_SLIDER )->GetValue() * 0.01f );
-		swprintf_s( sz, 100, L"Glow Factor: %0.2f", floatNum );
-		PostEffect_Glow.m_CBperResize.glow_factor = floatNum;
-		RenderUI.GetStatic( IDC_GLOWFACTOR_STATIC )->SetText( sz );
-		break;
+	//case IDC_GLOWFACTOR_SLIDER:
+	//	floatNum = ( float )( RenderUI.GetSlider( IDC_GLOWFACTOR_SLIDER )->GetValue() * 0.01f );
+	//	swprintf_s( sz, 100, L"Glow Factor: %0.2f", floatNum );
+	//	PostEffect_Glow.m_CBperResize.glow_factor = floatNum;
+	//	RenderUI.GetStatic( IDC_GLOWFACTOR_STATIC )->SetText( sz );
+	//	break;
 
-	case IDC_BLURFACTOR_SLIDER:
-		floatNum = ( float )( RenderUI.GetSlider( IDC_BLURFACTOR_SLIDER )->GetValue() * 0.001f );
-		swprintf_s( sz, 100, L"Blur Factor: %0.4f", floatNum );
-		PostEffect_Blur.m_CBperResize.blur_factor = floatNum;
-		RenderUI.GetStatic( IDC_BLURFACTOR_STATIC )->SetText( sz );
-		break;
+	//case IDC_BLURFACTOR_SLIDER:
+	//	floatNum = ( float )( RenderUI.GetSlider( IDC_BLURFACTOR_SLIDER )->GetValue() * 0.001f );
+	//	swprintf_s( sz, 100, L"Blur Factor: %0.4f", floatNum );
+	//	PostEffect_Blur.m_CBperResize.blur_factor = floatNum;
+	//	RenderUI.GetStatic( IDC_BLURFACTOR_STATIC )->SetText( sz );
+	//	break;
 
-	case IDC_GLOWBLENDFACTOR_SLIDER:
-		floatNum = ( float )( RenderUI.GetSlider( IDC_GLOWBLENDFACTOR_SLIDER )->GetValue() * 0.01f );
-		swprintf_s( sz, 100, L"Blend Factor: %0.2f", floatNum );
-		PostEffect_Glow.m_CBperResize.blend_factor = floatNum;
-		RenderUI.GetStatic( IDC_GLOWBLENDFACTOR_STATIC )->SetText( sz );
-		break;
+	//case IDC_GLOWBLENDFACTOR_SLIDER:
+	//	floatNum = ( float )( RenderUI.GetSlider( IDC_GLOWBLENDFACTOR_SLIDER )->GetValue() * 0.01f );
+	//	swprintf_s( sz, 100, L"Blend Factor: %0.2f", floatNum );
+	//	PostEffect_Glow.m_CBperResize.blend_factor = floatNum;
+	//	RenderUI.GetStatic( IDC_GLOWBLENDFACTOR_STATIC )->SetText( sz );
+	//	break;
 	}
 
 }
@@ -523,7 +556,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	DXUTCreateWindow( L"A School of Fish" );
 
 	// Only require 10-level hardware
-	DXUTCreateDevice( D3D_FEATURE_LEVEL_11_0, true, 1024, 768 );
+	DXUTCreateDevice( D3D_FEATURE_LEVEL_11_0, true, 1280, 800 );
 	DXUTMainLoop(); // Enter into the DXUT ren  der loop
 
 	// Perform any application-level cleanup here
