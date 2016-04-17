@@ -94,7 +94,7 @@ float3 Cohesion(float3 localPos, float3 avgPos)
 float3 Alignment(float3 localVel, float3 avgVel)
 {
 	float3 delta = avgVel - localVel;
-	float3 deltaSqr = dot(delta, delta) + softeningSquared;
+	float deltaSqr = dot(delta, delta) + softeningSquared;
 	float invDelta = 1.0f / sqrt(deltaSqr);
 	return alignmentFactor * delta * invDelta;
 }
@@ -105,7 +105,7 @@ float3 Seekings(float3 localPos, float3 localVel, float3 seekPos)
 	float3 delta = seekPos - localPos;
 	float deltaSqr = dot(delta, delta) + softeningSquared;
 	float invDelta = 1.0f / sqrt(deltaSqr);
-	float desiredVel = delta * invDelta * maximumSpeed - localVel;
+	float3 desiredVel = delta * invDelta * maximumSpeed - localVel;
 	return seekingFactor * delta *invDelta;
 }
 float3 Seeking(float3 vLocalPos, float3 vLocalVel, float3 vSeekPos)
